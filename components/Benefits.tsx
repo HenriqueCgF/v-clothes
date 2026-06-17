@@ -8,6 +8,7 @@ import {
   Flame,
   RefreshCw,
   Building2,
+  type LucideIcon,
 } from "lucide-react";
 import { translations, type Lang } from "@/lib/i18n";
 
@@ -15,7 +16,7 @@ interface BenefitsProps {
   lang: Lang;
 }
 
-const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
+const ICON_MAP: Record<string, LucideIcon> = {
   Ruler,
   Smartphone,
   ShieldCheck,
@@ -64,7 +65,7 @@ export default function Benefits({ lang }: BenefitsProps) {
         {/* Benefits grid — asymmetric: 2 large + 4 small */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {t.items.map((item, i) => {
-            const Icon = ICON_MAP[item.icon];
+            const Icon: LucideIcon = ICON_MAP[item.icon];
             const isLarge = i < 2;
 
             return (
