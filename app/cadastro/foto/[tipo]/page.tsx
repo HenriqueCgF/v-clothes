@@ -34,9 +34,10 @@ export default function FotoPage({ params }: { params: { tipo: string } }) {
   const tipo   = params.tipo as "frente" | "lado";
   const c      = CONTENT[tipo] ?? CONTENT.frente;
 
-  const handleCapture = (landmarks: Landmark[], imageDataUrl: string) => {
+  const handleCapture = (landmarks: Landmark[], imageDataUrl: string, imgW: number, imgH: number) => {
     store.set(c.storeKey, landmarks);
     store.set(c.imageKey, imageDataUrl);
+    store.set(c.storeKey + "_dims", { w: imgW, h: imgH });
     setTimeout(() => router.push(c.nextRoute), 500);
   };
 

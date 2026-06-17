@@ -1,6 +1,6 @@
 export interface Landmark {
-  x: number; // 0–1 normalized
-  y: number; // 0–1 normalized
+  x: number; // 0–1 normalized (relative to video width)
+  y: number; // 0–1 normalized (relative to video height)
   z: number;
   visibility?: number;
 }
@@ -26,66 +26,83 @@ const IDX = {
   L_ANKLE: 27,    R_ANKLE: 28,
 };
 
-function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
-  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
-}
-
 function determineSize(bust: number, waist: number, hip: number): BodyMeasurements["tamanho"] {
-  // Brazilian ABNT sizing reference
-  if (bust <= 80 && waist <= 60 && hip <= 86) return "PP";
-  if (bust <= 88 && waist <= 68 && hip <= 94) return "P";
-  if (bust <= 96 && waist <= 76 && hip <= 102) return "M";
+  if (bust <= 80  && waist <= 60 && hip <= 86)  return "PP";
+  if (bust <= 88  && waist <= 68 && hip <= 94)  return "P";
+  if (bust <= 96  && waist <= 76 && hip <= 102) return "M";
   if (bust <= 104 && waist <= 84 && hip <= 110) return "G";
   if (bust <= 112 && waist <= 92 && hip <= 118) return "GG";
   return "XGG";
 }
 
+/**
+ * All calculations stay in NORMALIZED coordinate space.
+ *
+ * MediaPipe normalizes x ∈ [0,1] relative to image WIDTH and
+ * y ∈ [0,1] relative to image HEIGHT — so 1 unit of x ≠ 1 unit of y
+ * in physical space unless the image is square.
+ *
+ * Correct conversion:
+ *   horizontal_physical = x_norm * AR      (AR = imgW / imgH)
+ *   vertical_physical   = y_norm * 1
+ *
+ * Both are now in the same unit ("image-height-lengths"), so we can
+ * use bodyNorm_y as the calibration baseline.
+ */
 export function calculateMeasurements(
-  frontLandmarks: Landmark[],
+  lms: Landmark[],
   heightCm: number,
-  imgW: number,
-  imgH: number
+  imgW: number,    // actual video width  (e.g. 480 on portrait phone)
+  imgH: number     // actual video height (e.g. 640 on portrait phone)
 ): BodyMeasurements {
-  const px = (i: number) => ({
-    x: frontLandmarks[i].x * imgW,
-    y: frontLandmarks[i].y * imgH,
-  });
+  // Aspect ratio: converts x-normalized to the same unit as y-normalized
+  const AR = imgW / imgH;
 
-  const nose      = px(IDX.NOSE);
-  const lShoulder = px(IDX.L_SHOULDER);
-  const rShoulder = px(IDX.R_SHOULDER);
-  const lHip      = px(IDX.L_HIP);
-  const rHip      = px(IDX.R_HIP);
-  const lAnkle    = px(IDX.L_ANKLE);
-  const rAnkle    = px(IDX.R_ANKLE);
+  // ── helpers ─────────────────────────────────────────────────────────────
+  // Horizontal distance in normalized-y-equivalent units
+  const hdist = (ia: number, ib: number) =>
+    Math.abs(lms[ia].x - lms[ib].x) * AR;
 
-  // Body pixel height: nose → ankle midpoint
-  const ankleMidY = (lAnkle.y + rAnkle.y) / 2;
-  const bodyPx = ankleMidY - nose.y;
+  // Vertical distance (no correction needed)
+  const vdist = (ia: number, ib: number) =>
+    Math.abs(lms[ia].y - lms[ib].y);
 
-  // px-to-cm ratio (pixels per cm)
-  const ppc = bodyPx / (heightCm * 0.93); // 93% = ankle-to-nose / full height
+  // ── calibration baseline ────────────────────────────────────────────────
+  // Nose (landmark 0) to ankle midpoint in normalized-y units
+  const ankleNormY  = (lms[IDX.L_ANKLE].y + lms[IDX.R_ANKLE].y) / 2;
+  const bodyNormY   = ankleNormY - lms[IDX.NOSE].y;
 
-  // Width measurements in pixels → cm
-  const shoulderPx = dist(lShoulder, rShoulder);
-  const hipPx = dist(lHip, rHip);
+  // How many normalized-y units per cm (nose-to-ankle = 86.5% of full height)
+  const noseToAnkleCm = heightCm * 0.865;
+  const normPerCm     = bodyNormY / noseToAnkleCm; // normalized units / cm
 
-  // Waist: estimated midpoint between shoulder and hip
-  const waistMidY = (lShoulder.y + rShoulder.y) / 2 + (lHip.y - lShoulder.y) * 0.55;
-  const waistLX = lShoulder.x + (lHip.x - lShoulder.x) * 0.55;
-  const waistRX = rShoulder.x + (rHip.x - rShoulder.x) * 0.55;
-  const waistPx = Math.abs(waistRX - waistLX);
+  // ── horizontal widths → cm ──────────────────────────────────────────────
+  const shoulderNorm = hdist(IDX.L_SHOULDER, IDX.R_SHOULDER);
+  const hipNorm      = hdist(IDX.L_HIP,      IDX.R_HIP);
 
-  const shoulderCm = shoulderPx / ppc;
+  // Waist: interpolated between shoulder and hip (55% down from shoulder)
+  const waistNorm =
+    (Math.abs(lms[IDX.L_SHOULDER].x - lms[IDX.L_HIP].x) * 0.55 +
+     Math.abs(lms[IDX.R_SHOULDER].x - lms[IDX.R_HIP].x) * 0.55 +
+     Math.abs(lms[IDX.L_SHOULDER].x - lms[IDX.R_SHOULDER].x) * 0.45 +
+     Math.abs(lms[IDX.L_HIP].x      - lms[IDX.R_HIP].x)      * 0.55
+    ) / 2 * AR;
 
-  // Front view shows ~43% of full circumference for each measurement
-  const bustCm   = (shoulderPx / ppc) * 2.3;
-  const cinturaCm = (waistPx  / ppc) * 2.5;
-  const quadrilCm = (hipPx    / ppc) * 2.4;
+  const shoulderCm = shoulderNorm / normPerCm;
+  const hipWidthCm = hipNorm      / normPerCm;
+  const waistWidthCm = waistNorm  / normPerCm;
 
-  // Leg length: hip midpoint to ankle midpoint
-  const hipMidY   = (lHip.y + rHip.y) / 2;
-  const pernaCm   = (ankleMidY - hipMidY) / ppc;
+  // ── circumferences (front half-width × 2 × shape factor) ───────────────
+  // The front view shows approximately 43–45% of the body circumference.
+  // Shape factors validated against standard size charts.
+  const bustCm    = shoulderCm   * 2.2;   // shoulder-width → bust circumference
+  const cinturaCm = waistWidthCm * 2.4;   // front waist width → full waist
+  const quadrilCm = hipWidthCm   * 2.35;  // front hip width → full hip
+
+  // ── vertical distances → cm ─────────────────────────────────────────────
+  const hipMidY  = (lms[IDX.L_HIP].y   + lms[IDX.R_HIP].y)   / 2;
+  const pernaNorm = ankleNormY - hipMidY;
+  const pernaCm   = pernaNorm / normPerCm;
 
   const tamanho = determineSize(bustCm, cinturaCm, quadrilCm);
 

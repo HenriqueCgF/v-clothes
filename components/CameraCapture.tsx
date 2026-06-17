@@ -6,7 +6,7 @@ import { BODY_CONNECTIONS, type Landmark } from "@/lib/measurements";
 type PoseState = "loading" | "no_pose" | "bad" | "ok" | "good";
 
 interface Props {
-  onCapture: (landmarks: Landmark[], imageDataUrl: string) => void;
+  onCapture: (landmarks: Landmark[], imageDataUrl: string, imgW: number, imgH: number) => void;
   tipo?: "frente" | "lado";
   title?: string;
 }
@@ -190,7 +190,7 @@ export default function CameraCapture({ onCapture, tipo = "frente", title }: Pro
 
     cancelAnimationFrame(animRef.current);
     setCaptured(true);
-    onCapture(lms, dataUrl);
+    onCapture(lms, dataUrl, video.videoWidth, video.videoHeight);
   }, [onCapture]);
 
   // ── countdown ─────────────────────────────────────────────────────────────

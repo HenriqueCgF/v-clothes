@@ -31,8 +31,9 @@ export default function MedidasPage() {
     }
 
     setFrontImage(imgData);
-    // Use a standard reference image size for calculations
-    const result = calculateMeasurements(frontLms, altura, 640, 480);
+    // Use actual video dimensions captured at photo time
+    const dims = store.get<{ w: number; h: number }>("frontLandmarks_dims") ?? { w: 640, h: 480 };
+    const result = calculateMeasurements(frontLms, altura, dims.w, dims.h);
     setMeasurements(result);
   }, [router]);
 
