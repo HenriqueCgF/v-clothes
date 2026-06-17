@@ -38,7 +38,7 @@ export default function FinalCTA({ lang }: FinalCTAProps) {
 
   return (
     <section
-      id="waitlist"
+      id="waitlist-section"
       ref={sectionRef}
       className="py-24 relative overflow-hidden"
       style={{

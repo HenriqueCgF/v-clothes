@@ -66,7 +66,7 @@ export default function Hero({ lang }: HeroProps) {
           style={{ animationDelay: "500ms" }}
         >
           <a
-            href="#waitlist"
+            href="/cadastro"
             className="shimmer-btn text-white font-semibold font-display text-base px-8 py-4 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center gap-2"
           >
             <Camera size={18} />

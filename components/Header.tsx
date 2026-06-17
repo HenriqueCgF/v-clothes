@@ -67,7 +67,7 @@ export default function Header({ lang, onLangToggle }: HeaderProps) {
             {t.langToggle}
           </button>
           <a
-            href="#waitlist"
+            href="/cadastro"
             className="shimmer-btn text-white text-sm font-semibold px-5 py-2 rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200"
           >
             {t.getStarted}
@@ -105,7 +105,7 @@ export default function Header({ lang, onLangToggle }: HeaderProps) {
             </a>
           ))}
           <a
-            href="#waitlist"
+            href="/cadastro"
             onClick={() => setMenuOpen(false)}
             className="shimmer-btn text-white text-sm font-semibold px-5 py-2.5 rounded-full text-center mt-1"
           >
