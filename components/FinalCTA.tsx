@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { store } from "@/lib/session-store";
 import { ArrowRight, CheckCircle } from "lucide-react";
 import { translations, type Lang } from "@/lib/i18n";
 
@@ -33,7 +34,10 @@ export default function FinalCTA({ lang }: FinalCTAProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email) setSubmitted(true);
+    if (email) {
+      store.set("waitlistEmail", email);
+      setSubmitted(true);
+    }
   };
 
   return (
