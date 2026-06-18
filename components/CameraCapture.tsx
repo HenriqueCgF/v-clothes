@@ -121,9 +121,17 @@ export default function CameraCapture({ onCapture, tipo = "frente", title }: Pro
       const vis = (i: number) => lms[i]?.visibility ?? 0;
 
       if (tipo === "frente") {
-        // All key landmarks must be visible
-        const KEY = [0, 11, 12, 23, 24, 27, 28];
-        if (KEY.some((i) => vis(i) < 0.45)) return "no_pose";
+        // All core landmarks must be visible — including knees
+        const KEY = [0, 11, 12, 23, 24, 25, 26, 27, 28];
+        if (KEY.some((i) => vis(i) < 0.40)) return "no_pose";
+
+        // Heels or foot landmarks must actually be in frame.
+        // MediaPipe predicts ankles even off-screen; heels/feet don't get
+        // predicted confidently when the foot is completely outside the image.
+        const hasRealFoot =
+          vis(29) > 0.30 || vis(30) > 0.30 || // heels
+          vis(31) > 0.30 || vis(32) > 0.30;   // foot tips
+        if (!hasRealFoot) return "bad"; // feet not fully visible yet
 
         const nose  = lms[0];
         const lSh   = lms[11], rSh  = lms[12];
@@ -138,12 +146,13 @@ export default function CameraCapture({ onCapture, tipo = "frente", title }: Pro
           vis(28) > 0.3 ? lms[28].y : 0, // R_ANKLE fallback
         );
 
-        if (bottomY - nose.y < 0.50) return "bad";
+        // Full body height must span at least 55% of the frame
+        if (bottomY - nose.y < 0.55) return "bad";
 
         const centerX = (lSh.x + rSh.x) / 2;
         if (centerX < 0.28 || centerX > 0.72) return "ok";
-        if (nose.y > 0.28) return "ok";
-        if (bottomY < 0.72) return "ok";
+        if (nose.y > 0.25) return "ok";    // head must be near top of frame
+        if (bottomY < 0.80) return "ok";   // feet must be near bottom of frame
 
         return "good";
 
