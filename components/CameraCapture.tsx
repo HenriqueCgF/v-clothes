@@ -43,11 +43,14 @@ export default function CameraCapture({ onCapture, tipo = "frente", title }: Pro
   const detectorRef  = useRef<any>(null);
   const landmarksRef = useRef<Landmark[] | null>(null);
 
-  const [poseState, setPoseState] = useState<PoseState>("loading");
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const [captured,  setCaptured]  = useState(false);
+  const [poseState,  setPoseState]  = useState<PoseState>("loading");
+  const [countdown,  setCountdown]  = useState<number | null>(null);
+  const [cooldown,   setCooldown]   = useState<number | null>(null);
+  const [captured,   setCaptured]   = useState(false);
   const countRef    = useRef<NodeJS.Timeout | null>(null);
+  const coolRef     = useRef<NodeJS.Timeout | null>(null);
   const countingRef = useRef(false);
+  const coolingRef  = useRef(false);
 
   // ── draw overlay ─────────────────────────────────────────────────────────
   const drawOverlay = useCallback(
@@ -220,31 +223,55 @@ export default function CameraCapture({ onCapture, tipo = "frente", title }: Pro
     onCapture(lms, dataUrl, video.videoWidth, video.videoHeight);
   }, [onCapture]);
 
+  // ── cooldown (penalty after moving during countdown) ─────────────────────
+  const startCooldown = useCallback(() => {
+    coolingRef.current = true;
+    setCooldown(5);
+    let c = 5;
+    const tick = () => {
+      if (!coolingRef.current) return;
+      c -= 1;
+      if (c <= 0) {
+        coolingRef.current = false;
+        setCooldown(null);
+      } else {
+        setCooldown(c);
+        coolRef.current = setTimeout(tick, 1000);
+      }
+    };
+    coolRef.current = setTimeout(tick, 1000);
+  }, []);
+
+  const cancelCooldown = useCallback(() => {
+    coolingRef.current = false;
+    setCooldown(null);
+    if (coolRef.current) { clearTimeout(coolRef.current); coolRef.current = null; }
+  }, []);
+
   // ── countdown ─────────────────────────────────────────────────────────────
   const startCountdown = useCallback(() => {
     if (countingRef.current) return;
+    if (coolingRef.current) return; // blocked during penalty cooldown
     countingRef.current = true;
     setCountdown(5);
     let n = 5;
     const tick = () => {
-      // Check if countdown was cancelled while waiting
       if (!countingRef.current) return;
       n -= 1;
       if (n <= 0) { setCountdown(null); capturePhoto(); }
       else { setCountdown(n); countRef.current = setTimeout(tick, 1000); }
     };
     countRef.current = setTimeout(tick, 1000);
-  }, [capturePhoto]);
+  }, [capturePhoto, coolingRef]);
 
-  const stopCountdown = useCallback(() => {
-    // Always reset fully so next "good" starts a fresh 5-second countdown
+  const stopCountdown = useCallback((applyPenalty: boolean) => {
+    const wasActive = countingRef.current;
     countingRef.current = false;
     setCountdown(null);
-    if (countRef.current) {
-      clearTimeout(countRef.current);
-      countRef.current = null;
-    }
-  }, []);
+    if (countRef.current) { clearTimeout(countRef.current); countRef.current = null; }
+    // Only start penalty cooldown if person moved WHILE the countdown was running
+    if (applyPenalty && wasActive) startCooldown();
+  }, [startCooldown]);
 
   // ── detection loop ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -306,12 +333,12 @@ export default function CameraCapture({ onCapture, tipo = "frente", title }: Pro
         setPoseState(state);
         drawOverlay(lms, state, ctx, w, h);
         if (state === "good") startCountdown();
-        else stopCountdown();
+        else stopCountdown(true); // apply penalty if they moved away mid-countdown
       } else {
         landmarksRef.current = null;
         setPoseState("no_pose");
         drawOverlay(null, "no_pose", ctx, w, h);
-        stopCountdown();
+        stopCountdown(true);
       }
     }
 
@@ -319,10 +346,11 @@ export default function CameraCapture({ onCapture, tipo = "frente", title }: Pro
     return () => {
       running = false;
       cancelAnimationFrame(animRef.current);
-      stopCountdown();
+      stopCountdown(false);
+      cancelCooldown();
       (video.srcObject as MediaStream | null)?.getTracks().forEach((t) => t.stop());
     };
-  }, [captured, drawOverlay, evalPose, startCountdown, stopCountdown]);
+  }, [captured, drawOverlay, evalPose, startCountdown, stopCountdown, cancelCooldown]);
 
   const color = STATE_COLOR[poseState];
   const msg   = STATE_MSG[tipo][poseState];
@@ -377,6 +405,26 @@ export default function CameraCapture({ onCapture, tipo = "frente", title }: Pro
             }}
           >
             {countdown}
+          </span>
+        </div>
+      )}
+
+      {/* Penalty cooldown overlay */}
+      {cooldown !== null && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-3 pointer-events-none">
+          <span
+            className="font-display font-black"
+            style={{
+              fontSize: "min(25vw, 160px)",
+              color: "#EAB308",
+              textShadow: "0 0 40px #EAB30888",
+              animation: "countPulse 0.9s ease-in-out infinite",
+            }}
+          >
+            {cooldown}
+          </span>
+          <span className="text-white font-semibold text-base bg-black/50 px-4 py-1.5 rounded-full">
+            Aguarde para retomar…
           </span>
         </div>
       )}
