@@ -119,9 +119,11 @@ export function calculateMeasurements(
   const quadrilCm = hipWidthCm   * 2.35;  // front hip width → full hip
 
   // ── vertical distances → cm ─────────────────────────────────────────────
-  const hipMidY  = (lms[IDX.L_HIP].y   + lms[IDX.R_HIP].y)   / 2;
+  const hipMidY  = (lms[IDX.L_HIP].y + lms[IDX.R_HIP].y) / 2;
   const pernaNorm = bottomNormY - hipMidY;
-  const pernaCm   = pernaNorm / normPerCm;
+  // MediaPipe mede do quadril (articulação) até o chão.
+  // Entreperna (virilha→chão) começa ~10cm abaixo — fator 0.885 corrige isso.
+  const pernaCm   = (pernaNorm / normPerCm) * 0.885;
 
   const tamanho = determineSize(bustCm, cinturaCm, quadrilCm);
 
