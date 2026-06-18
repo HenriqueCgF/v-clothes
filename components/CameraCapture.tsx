@@ -148,35 +148,41 @@ export default function CameraCapture({ onCapture, tipo = "frente", title }: Pro
         return "good";
 
       } else {
-        // LADO: much more lenient — MediaPipe sees only one side
-        // Require: nose + at least one shoulder + at least one hip + at least one ankle
+        // LADO: person must be truly sideways (profile view)
         if (vis(0) < 0.3) return "no_pose";
 
         const hasShoulders = vis(11) > 0.3 || vis(12) > 0.3;
         const hasHips      = vis(23) > 0.3 || vis(24) > 0.3;
-        const hasAnkles    = vis(27) > 0.3 || vis(28) > 0.3;
+        const hasAnkles    = vis(27) > 0.3 || vis(28) > 0.3 || vis(29) > 0.2 || vis(30) > 0.2;
 
         if (!hasShoulders || !hasHips || !hasAnkles) return "no_pose";
 
-        const nose    = lms[0];
-        const ankleY  = Math.max(
+        const nose   = lms[0];
+        const bottomY = Math.max(
+          vis(29) > 0.2 ? lms[29].y : 0,
+          vis(30) > 0.2 ? lms[30].y : 0,
           vis(27) > 0.3 ? lms[27].y : 0,
-          vis(28) > 0.3 ? lms[28].y : 0
+          vis(28) > 0.3 ? lms[28].y : 0,
         );
-        const bodyH   = ankleY - nose.y;
-        if (bodyH < 0.45) return "bad";
+        if (bottomY - nose.y < 0.45) return "bad";
 
-        // Shoulders must appear narrow (person is sideways)
-        const lSh = lms[11], rSh = lms[12];
-        const shoulderWidth = Math.abs(lSh.x - rSh.x);
+        // Shoulders must be NARROW — when sideways the two shoulder landmarks
+        // nearly overlap. Facing front they are 0.20–0.35 apart.
+        const shoulderWidth = Math.abs(lms[11].x - lms[12].x);
+        const hipWidth      = Math.abs(lms[23].x - lms[24].x);
 
-        // If shoulders are wide, person is still facing front
-        if (shoulderWidth > 0.22 && vis(11) > 0.4 && vis(12) > 0.4) return "ok";
+        // Both shoulders visible and wide → clearly facing front
+        if (vis(11) > 0.35 && vis(12) > 0.35 && shoulderWidth > 0.13) return "ok";
 
-        // Nose should be roughly centered
-        if (nose.x < 0.22 || nose.x > 0.78) return "ok";
+        // Even if only one shoulder detected, width > 0.13 means not sideways
+        if (shoulderWidth > 0.13) return "ok";
+
+        // Hips also visible and wide → not fully sideways
+        if (vis(23) > 0.35 && vis(24) > 0.35 && hipWidth > 0.13) return "ok";
+
+        // Body position checks
         if (nose.y > 0.30) return "ok";
-        if (ankleY < 0.70) return "ok";
+        if (bottomY < 0.70) return "ok";
 
         return "good";
       }
