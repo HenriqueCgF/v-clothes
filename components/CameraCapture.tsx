@@ -126,16 +126,24 @@ export default function CameraCapture({ onCapture, tipo = "frente", title }: Pro
         if (KEY.some((i) => vis(i) < 0.45)) return "no_pose";
 
         const nose  = lms[0];
-        const lAnk  = lms[27], rAnk = lms[28];
         const lSh   = lms[11], rSh  = lms[12];
 
-        const ankleY = (lAnk.y + rAnk.y) / 2;
-        if (ankleY - nose.y < 0.50) return "bad";
+        // Use the lowest visible landmark (heel/foot > ankle) as true bottom
+        const bottomY = Math.max(
+          vis(29) > 0.2 ? lms[29].y : 0, // L_HEEL
+          vis(30) > 0.2 ? lms[30].y : 0, // R_HEEL
+          vis(31) > 0.2 ? lms[31].y : 0, // L_FOOT_INDEX
+          vis(32) > 0.2 ? lms[32].y : 0, // R_FOOT_INDEX
+          vis(27) > 0.3 ? lms[27].y : 0, // L_ANKLE fallback
+          vis(28) > 0.3 ? lms[28].y : 0, // R_ANKLE fallback
+        );
+
+        if (bottomY - nose.y < 0.50) return "bad";
 
         const centerX = (lSh.x + rSh.x) / 2;
         if (centerX < 0.28 || centerX > 0.72) return "ok";
         if (nose.y > 0.28) return "ok";
-        if (ankleY < 0.72) return "ok";
+        if (bottomY < 0.72) return "ok";
 
         return "good";
 

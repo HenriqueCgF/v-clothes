@@ -24,6 +24,8 @@ const IDX = {
   L_HIP: 23,      R_HIP: 24,
   L_KNEE: 25,     R_KNEE: 26,
   L_ANKLE: 27,    R_ANKLE: 28,
+  L_HEEL: 29,     R_HEEL: 30,
+  L_FOOT: 31,     R_FOOT: 32,
 };
 
 function determineSize(bust: number, waist: number, hip: number): BodyMeasurements["tamanho"] {
@@ -68,13 +70,28 @@ export function calculateMeasurements(
     Math.abs(lms[ia].y - lms[ib].y);
 
   // ── calibration baseline ────────────────────────────────────────────────
-  // Nose (landmark 0) to ankle midpoint in normalized-y units
-  const ankleNormY  = (lms[IDX.L_ANKLE].y + lms[IDX.R_ANKLE].y) / 2;
-  const bodyNormY   = ankleNormY - lms[IDX.NOSE].y;
+  // Use the lowest visible landmark among heel and foot index.
+  // Ankle can be detected at shin level when feet are partially hidden —
+  // heels and foot-tip are more reliably placed at the actual floor level.
+  const bottomCandidates = [
+    { idx: IDX.L_HEEL,   lm: lms[IDX.L_HEEL]   },
+    { idx: IDX.R_HEEL,   lm: lms[IDX.R_HEEL]   },
+    { idx: IDX.L_FOOT,   lm: lms[IDX.L_FOOT]   },
+    { idx: IDX.R_FOOT,   lm: lms[IDX.R_FOOT]   },
+    { idx: IDX.L_ANKLE,  lm: lms[IDX.L_ANKLE]  },
+    { idx: IDX.R_ANKLE,  lm: lms[IDX.R_ANKLE]  },
+  ].filter(c => c.lm && (c.lm.visibility ?? 0) > 0.2);
 
-  // How many normalized-y units per cm (nose-to-ankle = 86.5% of full height)
-  const noseToAnkleCm = heightCm * 0.865;
-  const normPerCm     = bodyNormY / noseToAnkleCm; // normalized units / cm
+  // Highest y value = lowest on screen = closest to floor
+  const bottomNormY = bottomCandidates.length > 0
+    ? Math.max(...bottomCandidates.map(c => c.lm.y))
+    : (lms[IDX.L_ANKLE].y + lms[IDX.R_ANKLE].y) / 2;
+
+  const bodyNormY = bottomNormY - lms[IDX.NOSE].y;
+
+  // nose-to-floor = 94% of full height (nose is ~6% from top of head)
+  const noseToFloorCm = heightCm * 0.940;
+  const normPerCm     = bodyNormY / noseToFloorCm; // normalized units / cm
 
   // ── horizontal widths → cm ──────────────────────────────────────────────
   const shoulderNorm = hdist(IDX.L_SHOULDER, IDX.R_SHOULDER);
@@ -88,7 +105,9 @@ export function calculateMeasurements(
      Math.abs(lms[IDX.L_HIP].x      - lms[IDX.R_HIP].x)      * 0.55
     ) / 2 * AR;
 
-  const shoulderCm = shoulderNorm / normPerCm;
+  // MediaPipe mede entre as articulações (glenoumeral), que é ~10% menor
+  // que a distância acromial que uma fita métrica pega.
+  const shoulderCm = (shoulderNorm / normPerCm) * 1.10;
   const hipWidthCm = hipNorm      / normPerCm;
   const waistWidthCm = waistNorm  / normPerCm;
 
