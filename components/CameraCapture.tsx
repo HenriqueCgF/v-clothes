@@ -151,8 +151,12 @@ export default function CameraCapture({ onCapture, tipo = "frente", title }: Pro
 
         const centerX = (lSh.x + rSh.x) / 2;
         if (centerX < 0.28 || centerX > 0.72) return "ok";
-        if (nose.y > 0.25) return "ok";    // head must be near top of frame
-        if (bottomY < 0.80) return "ok";   // feet must be near bottom of frame
+
+        // Head must not be cut off: nose too close to top edge means forehead is outside frame
+        if (nose.y < 0.06) return "bad";   // head cut off at the top
+        if (nose.y > 0.22) return "ok";    // head must be in upper part of frame
+
+        if (bottomY < 0.82) return "ok";   // feet must be near the bottom of frame
 
         return "good";
 
@@ -220,9 +224,11 @@ export default function CameraCapture({ onCapture, tipo = "frente", title }: Pro
   const startCountdown = useCallback(() => {
     if (countingRef.current) return;
     countingRef.current = true;
-    setCountdown(3);
-    let n = 3;
+    setCountdown(5);
+    let n = 5;
     const tick = () => {
+      // Check if countdown was cancelled while waiting
+      if (!countingRef.current) return;
       n -= 1;
       if (n <= 0) { setCountdown(null); capturePhoto(); }
       else { setCountdown(n); countRef.current = setTimeout(tick, 1000); }
@@ -231,10 +237,13 @@ export default function CameraCapture({ onCapture, tipo = "frente", title }: Pro
   }, [capturePhoto]);
 
   const stopCountdown = useCallback(() => {
-    if (!countingRef.current) return;
+    // Always reset fully so next "good" starts a fresh 5-second countdown
     countingRef.current = false;
     setCountdown(null);
-    if (countRef.current) clearTimeout(countRef.current);
+    if (countRef.current) {
+      clearTimeout(countRef.current);
+      countRef.current = null;
+    }
   }, []);
 
   // ── detection loop ────────────────────────────────────────────────────────
