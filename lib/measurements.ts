@@ -120,7 +120,7 @@ export function calculateMeasurements(
 
   // ── vertical distances → cm ─────────────────────────────────────────────
   const hipMidY  = (lms[IDX.L_HIP].y   + lms[IDX.R_HIP].y)   / 2;
-  const pernaNorm = ankleNormY - hipMidY;
+  const pernaNorm = bottomNormY - hipMidY;
   const pernaCm   = pernaNorm / normPerCm;
 
   const tamanho = determineSize(bustCm, cinturaCm, quadrilCm);
