@@ -1,7 +1,10 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { ArrowDown, Camera, Sparkles } from "lucide-react";
 import { translations, type Lang } from "@/lib/i18n";
+
+const HolographicAvatar = dynamic(() => import("@/components/HolographicAvatar"), { ssr: false });
 
 interface HeroProps {
   lang: Lang;
@@ -111,70 +114,40 @@ export default function Hero({ lang }: HeroProps) {
           <div className="mx-auto w-48 md:w-64 relative animate-float">
             <div className="bg-brand-dark rounded-[2.5rem] p-2 shadow-2xl">
               <div className="bg-white rounded-[2rem] overflow-hidden aspect-[9/19]">
-                {/* Screen content */}
-                <div className="w-full h-full bg-gradient-to-b from-brand-blue-pale to-white flex flex-col items-center justify-center p-4 gap-3">
-                  {/* Silhouette */}
-                  <div className="w-16 h-24 relative">
-                    <div className="absolute inset-0 bg-brand-blue/10 rounded-full" />
-                    <svg viewBox="0 0 60 90" className="w-full h-full">
-                      {/* Simple body silhouette */}
-                      <ellipse cx="30" cy="12" rx="9" ry="9" fill="#DBEAFE" />
-                      <path
-                        d="M15 30 Q10 40 12 55 L18 55 L20 42 L30 45 L40 42 L42 55 L48 55 Q50 40 45 30 Q38 25 30 24 Q22 25 15 30Z"
-                        fill="#DBEAFE"
-                      />
-                      <path
-                        d="M18 55 L16 80 L22 80 L24 62 L30 63 L36 62 L38 80 L44 80 L42 55Z"
-                        fill="#DBEAFE"
-                      />
-                      {/* Measurement lines */}
-                      <line
-                        x1="10"
-                        y1="35"
-                        x2="50"
-                        y2="35"
-                        stroke="#3B82F6"
-                        strokeWidth="0.8"
-                        strokeDasharray="2,2"
-                      />
-                      <line
-                        x1="12"
-                        y1="43"
-                        x2="48"
-                        y2="43"
-                        stroke="#3B82F6"
-                        strokeWidth="0.8"
-                        strokeDasharray="2,2"
-                      />
-                      <line
-                        x1="11"
-                        y1="51"
-                        x2="49"
-                        y2="51"
-                        stroke="#3B82F6"
-                        strokeWidth="0.8"
-                        strokeDasharray="2,2"
-                      />
-                    </svg>
+                {/* Screen content — dark holographic theme */}
+                <div
+                  className="w-full h-full flex flex-col items-center justify-end pb-3 px-3 gap-2"
+                  style={{ background: "linear-gradient(180deg, #060F1E 0%, #0A1A35 60%, #0D2147 100%)" }}
+                >
+                  {/* 3D holographic avatar — takes up most of the screen */}
+                  <div className="w-full flex-1 min-h-0">
+                    <HolographicAvatar />
                   </div>
+
                   {/* Measurement tags */}
-                  <div className="flex gap-2 flex-wrap justify-center">
+                  <div className="flex gap-1.5 flex-wrap justify-center">
                     {["86cm", "64cm", "90cm"].map((m) => (
                       <span
                         key={m}
-                        className="bg-brand-blue text-white text-[9px] font-bold px-2 py-0.5 rounded-full"
+                        className="text-[8px] font-bold px-2 py-0.5 rounded-full border"
+                        style={{
+                          color: "#7DD3FC",
+                          borderColor: "#38BDF844",
+                          background: "#38BDF810",
+                        }}
                       >
                         {m}
                       </span>
                     ))}
                   </div>
+
                   {/* Mini recommendation */}
-                  <div className="w-full bg-white rounded-xl p-2 shadow-sm border border-brand-blue-light">
-                    <p className="text-[8px] font-bold text-brand-blue font-display text-center">
-                      ✓ 12{" "}
-                      {lang === "pt"
-                        ? "roupas encontradas"
-                        : "clothes found"}
+                  <div
+                    className="w-full rounded-lg p-1.5 text-center"
+                    style={{ background: "#38BDF812", border: "1px solid #38BDF833" }}
+                  >
+                    <p className="text-[7px] font-bold font-display" style={{ color: "#38BDF8" }}>
+                      ✓ 12 {lang === "pt" ? "roupas encontradas" : "clothes found"}
                     </p>
                   </div>
                 </div>
