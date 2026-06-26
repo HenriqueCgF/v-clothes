@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import type { Mesh, MeshBasicMaterial } from "three";
 
 export default function HolographicAvatar() {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -116,10 +117,10 @@ export default function HolographicAvatar() {
       scene.add(scanGlow);
 
       // Wire meshes for pulsing (collect references)
-      const wireMeshes: THREE.Mesh[] = [];
+      const wireMeshes: Mesh[] = [];
       body.traverse((child) => {
-        const m = child as THREE.Mesh;
-        if (m.isMesh && (m.material as THREE.MeshBasicMaterial).wireframe) {
+        const m = child as Mesh;
+        if (m.isMesh && (m.material as MeshBasicMaterial).wireframe) {
           wireMeshes.push(m);
         }
       });
@@ -137,7 +138,7 @@ export default function HolographicAvatar() {
         // Pulse opacity on wireframe meshes
         const op = 0.72 + Math.sin(pulse) * 0.12;
         for (const m of wireMeshes) {
-          (m.material as THREE.MeshBasicMaterial).opacity = op;
+          (m.material as MeshBasicMaterial).opacity = op;
         }
 
         // Scan line travel
